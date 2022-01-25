@@ -1,5 +1,6 @@
 package com.lucidiovacas.customer;
 
+import com.lucidiovacas.amqp.RabbitMqMessageProducer;
 import com.lucidiovacas.clients.fraud.FraudCheckResponse;
 import com.lucidiovacas.clients.fraud.FraudClient;
 import com.lucidiovacas.clients.notification.NotificationClient;
@@ -14,7 +15,9 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     //private final RestTemplate restTemplate;
     private final FraudClient fraudClient;
-    private final NotificationClient notificationClient;
+//    private final NotificationClient notificationClient;
+    private final RabbitMqMessageProducer rabbitMqMessageProducer;
+
 
     public void registerCustomer(CustomerRegistrationRequest request) {
         Customer customer = Customer.builder()
@@ -38,11 +41,18 @@ public class CustomerService {
             throw new IllegalStateException("fraudster");
         }
 
-        // todo: make it async. i.e add to queue
-        notificationClient.sendNotification(
-                new NotificationRequest(customer.getId(), customer.getFirstname(), "Welcome to my " +
-                        "microservices application")
+        NotificationRequest notificationRequest = new NotificationRequest(
+                customer.getId(),
+                customer.getFirstname(),
+                "Welcome to my " +
+                "microservices application"
         );
+        rabbitMqMessageProducer.publish(
+                notificationRequest,
+                "internal.exchange",
+                "internal.notification.routing-key"
+        );
+
 
     }
 }
